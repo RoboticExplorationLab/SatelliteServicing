@@ -77,10 +77,12 @@ v1 = [3;4.0]
 const statecache2 = StateCache(mechanism)
 
 function cost(x::AbstractVector{T}) where T
+    """This costs the squared distance between controlled_tip, and
+    desired_tip_location"""
     state = statecache2[T]
     copyto!(state,x)
     err = ((transform(state, controlled_tip,world) - desired_tip_location).v)
-    return transpose(err)*err
+    return dot(err,err)
 end
 
 # forward diff test
