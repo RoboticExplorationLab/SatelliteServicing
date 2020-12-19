@@ -111,13 +111,13 @@ hold off
 "
 
 const statecache = StateCache(rob)
-function my_dynamics2(state,x::AbstractVector{T},u,t) where T
+function my_dynamics2(x::AbstractVector{T},u,t) where T
     # q = @SVector x[SVector(1,2,3,4,5,6,7)]
     # v = @SVector x[SVector(8,9,10,11,12,13)]
-    # q = x[1:7]
-    # v = x[8:13]
-    q = SVector(x[1],x[2],x[3],x[4],x[5],x[6],x[7])
-    v = @SVector x[8:13]
+    q = x[1:7]
+    v = x[8:13]
+    # q = SVector(x[1],x[2],x[3],x[4],x[5],x[6],x[7])
+    # v = SVector(x[8],x[9],x[10],x[11],x[12],x[13])
     state = statecache[T]
     set_configuration!(state,q)
     set_velocity!(state,v)
@@ -140,3 +140,7 @@ xsample = X[200]
 using ForwardDiff
 const FD = ForwardDiff
 FD.jacobian(fdA_fx,xsample)
+
+
+
+# IK stuff
