@@ -109,3 +109,34 @@ hold on
 plot($Xm(8:10,:)')
 hold off
 "
+
+const statecache = StateCache(rob)
+function my_dynamics2(state,x::AbstractVector{T},u,t) where T
+    # q = @SVector x[SVector(1,2,3,4,5,6,7)]
+    # v = @SVector x[SVector(8,9,10,11,12,13)]
+    # q = x[1:7]
+    # v = x[8:13]
+    q = SVector(x[1],x[2],x[3],x[4],x[5],x[6],x[7])
+    v = @SVector x[8:13]
+    state = statecache[T]
+    set_configuration!(state,q)
+    set_velocity!(state,v)
+
+    v̇ = (mass_matrix(state))\(-dynamics_bias(state))
+    # v̇ = [ (J\(-cross(v[1:3],J*v[1:3])));
+    #      zeros(3)]
+
+    quat = q[1:4]
+    ω = v[1:3]
+    qdot = .5*qdot2(quat,[0;ω])
+    q̇ = [qdot;v[4:6]]
+    return SVector{13}([q̇;(mass_matrix(state))\(-dynamics_bias(state))])
+end
+
+fdA_fx(x2) =  my_dynamics2(state,x2,0,0)
+
+xsample = X[200]
+
+using ForwardDiff
+const FD = ForwardDiff
+FD.jacobian(fdA_fx,xsample)
