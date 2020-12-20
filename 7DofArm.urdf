@@ -22,7 +22,7 @@
 
   <joint name="joint_1" type="revolute">
     <axis xyz="0 0 1"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="1.57"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="1.57"/> -->
     <origin rpy="0 0 0" xyz=".5 .5 0"/>
     <parent link="base_link"/>
     <child link="link_1"/>
@@ -49,12 +49,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -63,7 +63,7 @@
 
   <joint name="joint_2" type="revolute">
     <axis xyz="0 1 0"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_1"/>
     <child link="link_2"/>
@@ -90,12 +90,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -104,7 +104,7 @@
 
   <joint name="joint_3" type="revolute">
     <axis xyz="0 0 1"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_2"/>
     <child link="link_3"/>
@@ -131,12 +131,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -145,7 +145,7 @@
 
   <joint name="joint_4" type="revolute">
     <axis xyz="0 1 0"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_3"/>
     <child link="link_4"/>
@@ -172,12 +172,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -186,7 +186,7 @@
 
   <joint name="joint_5" type="revolute">
     <axis xyz="0 0 1"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_4"/>
     <child link="link_5"/>
@@ -213,12 +213,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -227,7 +227,7 @@
 
   <joint name="joint_6" type="revolute">
     <axis xyz="0 1 0"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_5"/>
     <child link="link_6"/>
@@ -253,12 +253,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -267,7 +267,7 @@
 
   <joint name="joint_7" type="revolute">
     <axis xyz="1 0 0"/>
-    <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/>
+    <!-- <limit effort="1000.0" lower="-6" upper="6" velocity="0.5"/> -->
     <origin rpy="0 0 0" xyz="1 0 0"/>
     <parent link="link_6"/>
     <child link="link_7"/>
@@ -293,12 +293,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <cylinder radius="0.05" length="1"/>
       </geometry>
       <origin rpy="0 0 1.5708" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="3"/>
       <inertia ixx=".5" ixy="0.0" ixz="0.0" iyy=".5" iyz="0.0" izz=".5"/>
@@ -325,12 +325,12 @@
         <color rgba="1 0 0 1"/>
       </material>
     </visual>
-    <collision>
+    <!-- <collision>
       <geometry>
         <sphere radius=".075"/>
       </geometry>
       <origin rpy="0 1.5708 0" xyz="0 0 .5"/>
-    </collision>
+    </collision> -->
     <inertial>
       <mass value="0.0"/>
       <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>

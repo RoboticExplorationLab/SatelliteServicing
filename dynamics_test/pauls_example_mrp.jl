@@ -60,11 +60,11 @@ function my_dynamics2(x::AbstractVector{T},u,t) where T
     state = statecache[T]
     copyto!(state,[q_from_p(p);x[4:12]])
 
-    # get the dynamics for v
+    # get the dynamics for v (this state is the same for both)
     v̇ = (mass_matrix(state))\(-dynamics_bias(state))
 
-    # configuration kinematics kinematics
-    q̇ = [pdot_from_w(p,ω);vel]
+    # configuration kinematics (we have to adjust kinematics for mrpkin)
+    q̇ = SVector{6}([pdot_from_w(p,ω);vel])
 
     # ode's
     return [q̇;v̇]
@@ -116,14 +116,18 @@ hold off
 
 
 
-# fdA_fx(x2) =  my_dynamics2(state,x2,0,0)
-#
-# xsample = X[200]
-#
-# using ForwardDiff
-# const FD = ForwardDiff
-# FD.jacobian(fdA_fx,xsample)
-#
-#
-#
-# # IK stuff
+fdA_fx(x2) =  my_dynamics2(x2,0,0)
+
+xsample = X[200]
+
+using ForwardDiff
+const FD = ForwardDiff
+FD.jacobian(fdA_fx,xsample)
+
+
+fdAk_fx(x2) = rk42(my_dynamics2,x2,0,0,dt)
+
+FD.jacobian(fdAk_fx,xsample)
+
+
+# IK stuff

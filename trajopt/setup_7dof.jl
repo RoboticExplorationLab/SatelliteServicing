@@ -1,0 +1,55 @@
+
+
+
+
+
+urdf = "/Users/kevintracy/devel/SatelliteServicing/7DofArm.urdf"
+mechanism = parse_urdf(urdf,gravity = [0.0,0.0,0.0],floating = true)
+state = MechanismState(mechanism)
+
+body = findbody(mechanism, "link_6")
+controlled_tip = Point3D(default_frame(body), 0., 0, 0)
+
+desired_tip_location = Point3D(world, 0.5, 0, 2)
+
+world = root_frame(mechanism)
+
+# here is how to get the controlled point in the world frame
+transform(state, controlled_tip,world)
+
+
+const statecache3 = StateCache(mechanism)
+
+function cost(x::AbstractVector{T}) where T
+    """This costs the squared distance between controlled_tip, and
+    desired_tip_location
+
+    RBD state:
+    _________
+        q  (4)
+        r  (3)
+        θ1 (1)
+        θ2 (1)
+    q   θ3 (1)
+        θ4 (1)
+        θ5 (1)
+        θ6 (1)
+        θ7 (1)
+    _________
+        ω  (3)
+        vel(3)
+        θ̇1 (1)
+        θ̇2 (1)
+    v   θ̇3 (1)
+        θ̇4 (1)
+        θ̇5 (1)
+        θ̇6 (1)
+        θ̇7 (1)
+    _________
+
+    """
+    state = statecache3[T]
+    copyto!(state,x)
+    err = ((transform(state, controlled_tip,world) - desired_tip_location).v)
+    return dot(err,err)
+end

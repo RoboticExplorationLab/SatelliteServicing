@@ -1,6 +1,7 @@
 using RigidBodyDynamics
 using StaticArrays
-using MeshCatMechanisms, Blink
+using MeshCatMechanisms
+# using Blink
 
 using Random
 Random.seed!(42);
@@ -20,7 +21,7 @@ vis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
 setelement!(vis, point, 0.07)
 
 open(mvis)
-mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf));
+mvis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
 
 function jacobian_transpose_ik!(state::MechanismState,
                                body::RigidBody,
