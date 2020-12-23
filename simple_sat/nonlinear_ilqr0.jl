@@ -1,5 +1,6 @@
 using ForwardDiff, LinearAlgebra, MATLAB, Infiltrator
 using Attitude, StaticArrays
+using FiniteDiff
 const FD = ForwardDiff
 const FD2 = FiniteDiff
 # function dynamics(x,u,t)
@@ -31,33 +32,36 @@ function discrete_dynamics(x,u,t,dt)
 end
 function LQR_cost(Q,R,x,u,xf)
     # return .5*(x-xf)'*Q*(x - xf) + .5*u'*R*u
-    return (.5*cost(x) + .5*u'*R*u)
+    q = x[1:3]
+    v = x[4:6]
+    J = .5*cost(x) + .5*dot(v,v) + .5*u'*R*u
+    return J
 end
-function c_fx(x,u)
-    # this is for c < 0
-    # u <= u_max
-    # u - u_max <= 0
-    # u >= u_min
-    #-u <= u_min
-    #-u + u_min
-    return [u - params.u_max;
-           -u + params.u_min]
-end
-
-function Π(z)
-    out = zeros(eltype(z),length(z))
-    for i = 1:length(out)
-        out[i] = min(0,z[i])
-    end
-
-    return out
-end
+# function c_fx(x,u)
+#     # this is for c < 0
+#     # u <= u_max
+#     # u - u_max <= 0
+#     # u >= u_min
+#     #-u <= u_min
+#     #-u + u_min
+#     return [u - params.u_max;
+#            -u + params.u_min]
+# end
+#
+# function Π(z)
+#     out = zeros(eltype(z),length(z))
+#     for i = 1:length(out)
+#         out[i] = min(0,z[i])
+#     end
+#
+#     return out
+# end
 
 
 function Lag(Q,R,x,u,xf,λ,μ)
     # return (LQR_cost(Q,R,x,u,xf) +
     #         (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
-    return (LQR_cost(Q,R,x,u,xf))
+    return LQR_cost(Q,R,x,u,xf)
 end
 # function Lag2(Q,R,x,u,xf,λ,μ)
 #     @infiltrate
@@ -86,7 +90,7 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         J += Lag(Q_lqr,R_lqr,xtraj[k],utraj[k],xf,λ[k],μ)
     end
     # J += .5*(xtraj[N]-xf)'*Qf_lqr*(xtraj[N] - xf)
-    J += .5*cost(xtraj[N])
+    J += .5*cost(xtraj[N]) + .5*dot(xtraj[N][4:6],xtraj[N][4:6])
 
     @info "rollout done"
     @show J
@@ -122,23 +126,23 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # calculate cost gradients for this time step
             # q = Q*(xtraj[k]-xf)
             # r = R*utraj[k]
-            __L_fx(xl) = Lag(Q_lqr,R_lqr,xl,utraj[k],xf,λ[k],μ)
+            L_fxx(xl) = Lag(Q_lqr,R_lqr,xl,utraj[k],xf,λ[k],μ)
 
             # @infiltrate
             # error()
-            q = FD2.finite_difference_gradient(__L_fx,xtraj[k])
+            q = FD2.finite_difference_gradient(L_fxx,xtraj[k])
             # @info "gradient"
-            Q = FD2.finite_difference_hessian(__L_fx,xtraj[k])
+            Q = FD2.finite_difference_hessian(L_fxx,xtraj[k])
             # @info "hessian"
             # error()
             # Q = FD.hessian(cost,xtraj[k])
             # q = FD.gradient(cost,xtraj[k])
             #
             # # Lag2(Q,R,xtraj[k],utraj[k],xf,λ[k],μ)
-            _L_fx2(ul) = Lag(Q_lqr,R_lqr,xtraj[k],ul,xf,λ[k],μ)
-            R = FD2.finite_difference_hessian(_L_fx2,utraj[k])
+            L_fxu(ul) = Lag(Q_lqr,R_lqr,xtraj[k],ul,xf,λ[k],μ)
+            R = FD2.finite_difference_hessian(L_fxu,utraj[k])
             # @info "R Hessian"
-            r = FD2.finite_difference_gradient(_L_fx2,utraj[k])
+            r = FD2.finite_difference_gradient(L_fxu,utraj[k])
             # R = copy(R_lqr)
             # r = R_lqr*utraj[k]
 
@@ -149,14 +153,14 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # @infiltrate
             # error()
             # discrete dynamics jacobians
-            _A_fx(x) = discrete_dynamics(x,utraj[k],(k-1)*dt,dt)
-            Ak = FD2.finite_difference_jacobian(_A_fx,xtraj[k])
+            A_fx(xloc) = discrete_dynamics(xloc,utraj[k],(k-1)*dt,dt)
+            Ak = FD2.finite_difference_jacobian(A_fx,xtraj[k])
 
             # @info "A matrix"
-            __B_fx(u_loc) =  discrete_dynamics(xtraj[k],u_loc,(k-1)*dt,dt)
+            B_fx(u_loc) =  discrete_dynamics(xtraj[k],u_loc,(k-1)*dt,dt)
             # @infiltrate
             # error()
-            Bk = FD2.finite_difference_jacobian(__B_fx,utraj[k])
+            Bk = FD2.finite_difference_jacobian(B_fx,utraj[k])
 
             # @info "B matrix"
             # error()
@@ -194,7 +198,8 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
                 Jnew += Lag(Q_lqr,R_lqr,xnew[k],unew[k],xf,λ[k],μ)
             end
             # Jnew += .5*(xnew[N]-xf)'*Q_lqr*(xnew[N] - xf)
-            Jnew += .5*cost(xnew[N])
+            # Jnew += .5*cost(xnew[N])
+            Jnew += .5*cost(xnew[N]) + .5*dot(xnew[N][4:6],xnew[N][4:6])
 
             # if the new cost is lower, we keep it
             # @show Jnew
@@ -221,16 +226,18 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             break
         end
 
+        DJ = abs(J - Jnew)
+
 
         # ----------------------------output stuff-----------------------------
         if rem((iter-1),4)==0
-            println("iter       alpha      maxL    Cost")
+            println("iter       alpha      maxL    Cost      DJ")
         end
         maxL = round(maximum(vec(mat_from_vec(l))),digits = 3)
         J = Jnew
         J_display = round(J,digits = 3)
         alpha_display = round(alpha,digits = 3)
-        println("$iter          $alpha_display      $maxL    $J_display")
+        println("$iter          $alpha_display      $maxL    $J_display    $DJ")
 
 
     end
@@ -248,23 +255,27 @@ function runit()
 # R = Diagonal(@SVector ones(3))
 u_min = -0.05*(@SVector ones(3))
 u_max = 0.05*(@SVector ones(3))
-Q = Diagonal(@SVector ones(14))
-Qf = Diagonal(@SVector ones(14))
-xf = randn(14)
-R = 10*Diagonal(@SVector ones(7))
-x0 = zeros(14)
-x0 = 0.001*randn(14)
+Q = Diagonal(@SVector ones(6))
+Qf = Diagonal(@SVector ones(6))
+xf = randn(6)
+R = 10*Diagonal(@SVector ones(3))
+# x0 = zeros(14)
+x0 = zeros(6)
+x0[1:3] = [0.0001
+ -0.7227342478134154;
+  1.4454684956268309] + 0.5*randn(3)
+x0[4:6] = zeros(3)
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
-dt = 0.05
-N = 500
+dt = 0.1
+N = 200
 
 
 μ = 1e-2
 λ = cfill(6,N-1)
 # utraj = cfill(7,N-1)
-utraj = [0.01*randn(7) for i = 1:N-1]
-xtraj = cfill(14,N-1)
-constraint_violation = zeros(14,N-1)
+utraj = [0*randn(3) for i = 1:N-1]
+xtraj = cfill(6,N-1)
+# constraint_violation = zeros(14,N-1)
 for i = 1:1
     xtraj, utraj, K = ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
     # # @show "done with 1"
