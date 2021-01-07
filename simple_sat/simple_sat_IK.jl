@@ -1,7 +1,7 @@
 using RigidBodyDynamics
 using StaticArrays
 using MeshCatMechanisms
-
+using LinearAlgebra
 urdf = "/Users/kevintracy/devel/SatelliteServicing/simple_sat/simple_sat.xml"
 
 mechanism = parse_urdf(urdf,gravity = [0; 0; 0],floating = false)
@@ -64,7 +64,7 @@ set_configuration!(vis, configuration(state))
 
 
 # dynamics stuff
-# const statecache = StateCache(mechanism)
+const statecache = StateCache(mechanism)
 
 function cost(x::AbstractVector{T}) where T
     """This costs the squared distance between controlled_tip, and
@@ -100,10 +100,18 @@ function dynamics(x::AbstractVector{T},u,t) where T
     # get the dynamics for v (this state is the same for both)
     # @infiltrate
     # error()
-    v̇ = (mass_matrix(state))\(-dynamics_bias(state) + u)
+    M = Array(mass_matrix(state))
+    if rank(M)<size(M,1)
+        # @infiltrate
+        # error()
+        return NaN*x
+    else
 
-    # ode's
-    return [x[4:6];v̇]
+        v̇ = (mass_matrix(state))\(-dynamics_bias(state) + u)
+
+        # ode's
+        return [x[4:6];v̇]
+    end
 end
 
 

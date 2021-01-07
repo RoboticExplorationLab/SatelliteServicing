@@ -187,7 +187,7 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
         # forward pass
         Jnew = 0.0
-        for inner_i = 1:10
+        for inner_i = 1:20
             # @show inner_i
             Jnew = 0.0
             # rollout the dynamics
@@ -209,8 +209,10 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             else# this also pulls the linesearch back if hasnan(xnew)
                 alpha = (1/2)*alpha
             end
-            if inner_i == 10
+            if inner_i == 20
                 @warn ("Line Search Failed")
+                @infiltrate
+                error()
                 Jnew = copy(J)
                 break
             end
@@ -258,7 +260,7 @@ u_max = 0.05*(@SVector ones(3))
 Q = Diagonal(@SVector ones(6))
 Qf = Diagonal(@SVector ones(6))
 xf = randn(6)
-R = 10*Diagonal(@SVector ones(3))
+R = 100*Diagonal(@SVector ones(3))
 # x0 = zeros(14)
 x0 = zeros(6)
 x0[1:3] = [0.0001
@@ -299,17 +301,18 @@ end
 
 xm = mat_from_vec(xtraj)
 um = mat_from_vec(utraj)
-mat"
-figure
-hold on
-plot($xm')
-hold off
-"
-mat"
-figure
-hold on
-plot($um')
-hold off
-"
+# mat"
+# figure
+# hold on
+# plot($xm')
+# hold off
+# "
+# mat"
+# figure
+# hold on
+# plot($um')
+# hold off
+# "
+return xm, um
 end
-runit()
+xm2, um2 = runit()

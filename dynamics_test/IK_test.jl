@@ -87,4 +87,4 @@ function cost(x::AbstractVector{T}) where T
 end
 
 # forward diff test
-FD.hessian(cost,randn(4))
+# FD.hessian(cost,randn(4))
