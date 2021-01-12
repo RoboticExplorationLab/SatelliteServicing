@@ -1,5 +1,5 @@
 using ForwardDiff, LinearAlgebra, MATLAB, Infiltrator
-using Attitude, StaticArrays
+using Attitude, StaticArrays, FiniteDiff
 const FD = ForwardDiff
 const FD2 = FiniteDiff
 # function dynamics(x,u,t)
@@ -30,8 +30,8 @@ function discrete_dynamics(x,u,t,dt)
     return rk4(dynamics,x,u,t,dt)
 end
 function LQR_cost(Q,R,x,u,xf)
-    # return .5*(x-xf)'*Q*(x - xf) + .5*u'*R*u
-    return (.5*cost(x) + .5*u'*R*u)
+    return .5*(x-xf)'*Q*(x - xf) + .5*u'*R*u
+    # return (.5*cost(x) + .5*u'*R*u)
 end
 function c_fx(x,u)
     # this is for c < 0
@@ -85,8 +85,8 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         # J += LQR_cost(Q,R,xtraj[k],utraj[k],xf)
         J += Lag(Q_lqr,R_lqr,xtraj[k],utraj[k],xf,λ[k],μ)
     end
-    # J += .5*(xtraj[N]-xf)'*Qf_lqr*(xtraj[N] - xf)
-    J += .5*cost(xtraj[N])
+    J += .5*(xtraj[N]-xf)'*Qf_lqr*(xtraj[N] - xf)
+    # J += .5*cost(xtraj[N])
 
     @info "rollout done"
     @show J
@@ -193,8 +193,8 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
                 # Jnew += LQR_cost(Q,R,xnew[k],unew[k],xf)
                 Jnew += Lag(Q_lqr,R_lqr,xnew[k],unew[k],xf,λ[k],μ)
             end
-            # Jnew += .5*(xnew[N]-xf)'*Q_lqr*(xnew[N] - xf)
-            Jnew += .5*cost(xnew[N])
+            Jnew += .5*(xnew[N]-xf)'*Q_lqr*(xnew[N] - xf)
+            # Jnew += .5*cost(xnew[N])
 
             # if the new cost is lower, we keep it
             # @show Jnew
@@ -248,21 +248,22 @@ function runit()
 # R = Diagonal(@SVector ones(3))
 u_min = -0.05*(@SVector ones(3))
 u_max = 0.05*(@SVector ones(3))
-Q = Diagonal(@SVector ones(14))
-Qf = Diagonal(@SVector ones(14))
+Q = Diagonal(SVector{14}([ones(7);0.000001*ones(7)]))
+Qf = 10*Q
 xf = randn(14)
-R = 10*Diagonal(@SVector ones(7))
+R = .001*Diagonal(@SVector ones(7))
 x0 = zeros(14)
-x0 = 0.001*randn(14)
-global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
-dt = 0.05
-N = 500
+x0 = 0.1*randn(14)
+xf = zeros(14)
+global params = (dJ_tol = 1e-6, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
+dt = 0.1
+N = 50
 
 
 μ = 1e-2
 λ = cfill(6,N-1)
 # utraj = cfill(7,N-1)
-utraj = [0.01*randn(7) for i = 1:N-1]
+utraj = [0.00*randn(7) for i = 1:N-1]
 xtraj = cfill(14,N-1)
 constraint_violation = zeros(14,N-1)
 for i = 1:1
@@ -291,12 +292,21 @@ um = mat_from_vec(utraj)
 mat"
 figure
 hold on
-plot($xm')
+title('X Configuration')
+plot($xm(1:7,:)')
 hold off
 "
 mat"
 figure
 hold on
+title('X Velocity')
+plot($xm(8:14,:)')
+hold off
+"
+mat"
+figure
+hold on
+title('U')
 plot($um')
 hold off
 "

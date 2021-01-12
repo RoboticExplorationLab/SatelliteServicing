@@ -61,10 +61,13 @@ function dynamics(x::AbstractVector{T},u,t) where T
     copyto!(state,x)
 
     # get the dynamics for v (this state is the same for both)
-    # @infiltrate
-    # error()
-    v̇ = (mass_matrix(state))\(-dynamics_bias(state) + u)
+    M = mass_matrix(state)
+    if hasnan(M)
+        return NaN*x
+    else
+        v̇ = M\(-dynamics_bias(state) + u)
 
-    # ode's
-    return [x[8:14];v̇]
+        # ode's
+        return [x[8:14];v̇]
+    end
 end

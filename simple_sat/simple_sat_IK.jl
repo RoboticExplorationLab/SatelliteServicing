@@ -58,35 +58,37 @@ function jacobian_transpose_ik!(state::MechanismState,
     state
 end
 
-set_configuration!(state,[0.1;-.1;0.1])
+set_configuration!(state,[0.4;-.4;0.4])
 jacobian_transpose_ik!(state, body, controlled_point, desired_tip_location)
+
+set_configuration!(state,[0.3;-.3;-.3])
 set_configuration!(vis, configuration(state))
 
 
 # dynamics stuff
 const statecache = StateCache(mechanism)
 
-function cost(x::AbstractVector{T}) where T
-    """This costs the squared distance between controlled_tip, and
-    desired_tip_location
-
-    RBD state:
-    _________
-        θ1 (1)
-        θ2 (1)
-    q   θ3 (1)
-    _________
-        θ̇1 (1)
-        θ̇2 (1)
-    v   θ̇3 (1)
-    _________
-
-    """
-    state = statecache[T]
-    copyto!(state,x)
-    err = ((transform(state, controlled_tip,world) - desired_tip_location).v)
-    return dot(err,err)
-end
+# function cost(x::AbstractVector{T}) where T
+#     """This costs the squared distance between controlled_tip, and
+#     desired_tip_location
+#
+#     RBD state:
+#     _________
+#         θ1 (1)
+#         θ2 (1)
+#     q   θ3 (1)
+#     _________
+#         θ̇1 (1)
+#         θ̇2 (1)
+#     v   θ̇3 (1)
+#     _________
+#
+#     """
+#     state = statecache[T]
+#     copyto!(state,x)
+#     err = ((transform(state, controlled_tip,world) - desired_tip_location).v)
+#     return dot(err,err)
+# end
 
 function dynamics(x::AbstractVector{T},u,t) where T
     """Incoming state is the following:
@@ -101,18 +103,37 @@ function dynamics(x::AbstractVector{T},u,t) where T
     # @infiltrate
     # error()
     M = Array(mass_matrix(state))
-    if rank(M)<size(M,1)
+    if hasnan(M)
         # @infiltrate
         # error()
         return NaN*x
     else
 
-        v̇ = (mass_matrix(state))\(-dynamics_bias(state) + u)
+        v̇ = (M)\(-dynamics_bias(state) + u)
 
         # ode's
         return [x[4:6];v̇]
     end
 end
+
+# function dynamics(x::AbstractVector{T},u,t) where T
+#     """Incoming state is the following:
+#      x =  [q;v]
+#     """
+#     # now we convert it to a state for RBD
+#     state = statecache[T]
+#     copyto!(state,x)
+#
+#     # get the dynamics for v (this state is the same for both)
+#     M = mass_matrix(state)
+#     if hasnan(M)
+#         return NaN*x
+#     else
+#         v̇ = M\(-dynamics_bias(state) + u)
+#         # ode's
+#         return [x[4:6];v̇]
+#     end
+# end
 
 
 controlled_tip = controlled_point

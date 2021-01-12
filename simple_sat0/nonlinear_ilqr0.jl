@@ -260,18 +260,14 @@ function runit()
 # R = Diagonal(@SVector ones(3))
 u_min = -0.05*(@SVector ones(3))
 u_max = 0.05*(@SVector ones(3))
-Q = Diagonal(SVector{6}([ones(3);0.01*ones(3)]))
-Qf = 100*Q
+Q = Diagonal([10*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
+Qf = 10*Q
 # xf = zeros(6)
-xf = [0.0*randn(3);zeros(3)]
-R = 1*Diagonal(@SVector ones(3))
-# x0 = zeros(14)
-x0 = zeros(6)
-# x0[1:3] = [0.0001
-#  -0.7227342478134154;
-#   1.4454684956268309] + 0.5*randn(3)
-x0 = randn(6)
-x0[4:6] = zeros(3)
+R = 1*Diagonal([ones(3);ones(3);ones(3)])
+
+xf = zeros(18)
+x0 = [.1;.2;.3;1;2;3;randn(3);zeros(9)]
+
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
 dt = 0.2
 N = 150
@@ -280,7 +276,7 @@ N = 150
 μ = 1e-2
 λ = cfill(6,N-1)
 # utraj = cfill(7,N-1)
-utraj = [0*randn(3) for i = 1:N-1]
+utraj = [0*randn(9) for i = 1:N-1]
 xtraj = cfill(6,N-1)
 # constraint_violation = zeros(14,N-1)
 for i = 1:1
@@ -309,17 +305,16 @@ um = mat_from_vec(utraj)
 mat"
 figure
 hold on
-plot($xm(1:3,:)')
-legend('one','two','three')
+plot($xm')
 hold off
 "
-mat"
-figure
-hold on
-plot($xm(4:6,:)')
-legend('four','five','six')
-hold off
-"
+# mat"
+# figure
+# hold on
+# plot($xm(4:6,:)')
+# legend('four','five','six')
+# hold off
+# "
 mat"
 figure
 hold on
