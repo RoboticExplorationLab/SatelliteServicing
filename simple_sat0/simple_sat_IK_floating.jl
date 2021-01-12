@@ -5,11 +5,11 @@ using LinearAlgebra
 urdf = "/Users/kevintracy/devel/SatelliteServicing/simple_sat/simple_sat.xml"
 
 mechanism = parse_urdf(urdf,gravity = [0; 0; 0],floating = true)
-state = MechanismState(mechanism)
-
-body = findbody(mechanism, "second_arm")
-
-controlled_point = Point3D(default_frame(body), 0., 0, 2)
+# state = MechanismState(mechanism)
+#
+# body = findbody(mechanism, "second_arm")
+#
+# controlled_point = Point3D(default_frame(body), 0., 0, 2)
 
 vis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
 
@@ -66,7 +66,7 @@ vis = MechanismVisualizer(mechanism, URDFVisuals(urdf))
 
 
 # dynamics stuff
-const statecache2 = StateCache(mechanism)
+const statecache = StateCache(mechanism)
 
 # function cost(x::AbstractVector{T}) where T
 #     """This costs the squared distance between controlled_tip, and
@@ -126,7 +126,7 @@ function dynamics(x::AbstractVector{T},u,t) where T
     θ̇ = x[16:18]
 
     # now we convert it to a state for RBD
-    state = statecache2[T]
+    state = statecache[T]
     x_rbd = [q_from_p(p);x[4:end]]
     copyto!(state,x_rbd)
 
@@ -165,4 +165,4 @@ end
 # end
 
 
-controlled_tip = controlled_point
+# controlled_tip = controlled_point
