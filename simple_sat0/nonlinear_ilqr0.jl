@@ -38,25 +38,25 @@ function LQR_cost(Q,R,x,u,xf)
     # J = .5*cost(x) + .5*dot(v,v) + .5*u'*R*u
 
 end
-# function c_fx(x,u)
-#     # this is for c < 0
-#     # u <= u_max
-#     # u - u_max <= 0
-#     # u >= u_min
-#     #-u <= u_min
-#     #-u + u_min
-#     return [u - params.u_max;
-#            -u + params.u_min]
-# end
-#
-# function Π(z)
-#     out = zeros(eltype(z),length(z))
-#     for i = 1:length(out)
-#         out[i] = min(0,z[i])
-#     end
-#
-#     return out
-# end
+function c_fx(x,u)
+    # this is for c < 0
+    # u <= u_max
+    # u - u_max <= 0
+    # u >= u_min
+    #-u <= u_min
+    #-u + u_min
+    return [u - params.u_max;
+           -u + params.u_min]
+end
+
+function Π(z)
+    out = zeros(eltype(z),length(z))
+    for i = 1:length(out)
+        out[i] = min(0,z[i])
+    end
+
+    return out
+end
 
 
 function Lag(Q,R,x,u,xf,λ,μ)
@@ -261,9 +261,9 @@ function runit()
 u_min = -0.05*(@SVector ones(3))
 u_max = 0.05*(@SVector ones(3))
 Q = Diagonal([10*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
-Qf = 10*Q
+Qf = 100*Q
 # xf = zeros(6)
-R = 1*Diagonal([ones(3);ones(3);ones(3)])
+R = .1*Diagonal([ones(3);ones(3);ones(3)])
 
 xf = zeros(18)
 x0 = [.1;.2;.3;1;2;3;randn(3);zeros(9)]
@@ -301,6 +301,8 @@ end
 
 
 xm = mat_from_vec(xtraj)
+
+X_rbd = [ [q_from_p(xtraj[i][1:3]);xtraj[i][4:end]] for i = 1:length(xtraj)]
 um = mat_from_vec(utraj)
 mat"
 figure
@@ -321,6 +323,13 @@ hold on
 plot($um')
 hold off
 "
-return xm, um
+return xm, um, X_rbd
 end
-xm2, um2 = runit()
+xm2, um2, X_rbd = runit()
+
+# ts = 0:.2:149*0.2
+ts = [(i-1)*.2 for i = 1:150]
+# open(vis)
+
+qs2 = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
+MeshCatMechanisms.animate(vis, ts, qs2; realtimerate = 1.)
