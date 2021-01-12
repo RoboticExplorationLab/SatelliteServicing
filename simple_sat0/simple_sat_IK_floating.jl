@@ -95,6 +95,11 @@ function dynamics(x::AbstractVector{T},u,t) where T
      x =  mrp, position,   angular velocity, velocity
          {      q       } {             v            }
 
+
+         x = [q;v]
+         q = [quaternion;position;join angles] {n+1}
+         v = [ω; vel; joint speeds]            {n}
+
          # solver state
          configuration
          p = x[1:3] <: q
@@ -131,8 +136,6 @@ function dynamics(x::AbstractVector{T},u,t) where T
         return NaN*x
     else
         # dynamics
-        @infiltrate
-        error()
         v̇ = (M)\(-dynamics_bias(state) + u)
 
         # kinematics

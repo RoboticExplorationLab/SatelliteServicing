@@ -3,20 +3,7 @@ using Attitude, StaticArrays
 using FiniteDiff
 const FD = ForwardDiff
 const FD2 = FiniteDiff
-# function dynamics(x,u,t)
-#
-#     p = SVector(x[1],x[2],x[3])
-#     ω = SVector(x[4],x[5],x[6])
-#
-#     J = @views params.J
-#     invJ = @views params.invJ
-#
-#     return SVector{6}([pdot_from_w(p,ω);
-#            invJ*(u - ω × (J*ω))])
-# end
 function rk4(f, x_n, u, t,dt)
-
-    # x_n = SVector{6}(x_n)
 
     k1 = dt*f(x_n,u,t)
     k2 = dt*f(x_n+k1/2, u,t+dt/2)
@@ -60,16 +47,11 @@ end
 
 
 function Lag(Q,R,x,u,xf,λ,μ)
-    # return (LQR_cost(Q,R,x,u,xf) +
-    #         (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
-    return LQR_cost(Q,R,x,u,xf)
+    return (LQR_cost(Q,R,x,u,xf) +
+            (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
+    # return LQR_cost(Q,R,x,u,xf)
 end
-# function Lag2(Q,R,x,u,xf,λ,μ)
-#     @infiltrate
-#     error()
-#     return (LQR_cost(Q,R,x,u,xf) +
-#             (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
-# end
+
 function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
     # state and control dimensions
@@ -114,9 +96,20 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
         # @infiltrate
         # error()
-        L_fx(xl) = Lag(Qf_lqr,R_lqr,xl,utraj[1],xf,λ[1],μ)
-        S = FD2.finite_difference_hessian(L_fx,xtraj[N])
-        s = FD2.finite_difference_gradient(L_fx,xtraj[N])
+
+        # old
+        # L_fx(xl) = Lag(Qf_lqr,R_lqr,xl,utraj[1],xf,λ[1],μ)
+        # S = FD2.finite_difference_hessian(L_fx,xtraj[N])
+        # s = FD2.finite_difference_gradient(L_fx,xtraj[N])
+
+        # new
+        S = copy(Qf_lqr)
+        s = Qf_lqr*(xtraj[N] - xf)
+
+
+
+
+
         # S = .5*FD2.finite_difference_hessian(cost,xtraj[N])
         # s = .5*FD2.finite_difference_gradient(cost,xtraj[N])
 
@@ -127,13 +120,15 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # calculate cost gradients for this time step
             # q = Q*(xtraj[k]-xf)
             # r = R*utraj[k]
-            L_fxx(xl) = Lag(Q_lqr,R_lqr,xl,utraj[k],xf,λ[k],μ)
+            # L_fxx(xl) = Lag(Q_lqr,R_lqr,xl,utraj[k],xf,λ[k],μ)
 
             # @infiltrate
             # error()
-            q = FD2.finite_difference_gradient(L_fxx,xtraj[k])
-            # @info "gradient"
-            Q = FD2.finite_difference_hessian(L_fxx,xtraj[k])
+            # q = FD2.finite_difference_gradient(L_fxx,xtraj[k])
+            # Q = FD2.finite_difference_hessian(L_fxx,xtraj[k])
+
+            Q = Q_lqr
+            q = Q_lqr*(xtraj[k] - xf)
             # @info "hessian"
             # error()
             # Q = FD.hessian(cost,xtraj[k])
@@ -141,9 +136,10 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             #
             # # Lag2(Q,R,xtraj[k],utraj[k],xf,λ[k],μ)
             L_fxu(ul) = Lag(Q_lqr,R_lqr,xtraj[k],ul,xf,λ[k],μ)
-            R = FD2.finite_difference_hessian(L_fxu,utraj[k])
-            # @info "R Hessian"
-            r = FD2.finite_difference_gradient(L_fxu,utraj[k])
+            # R = FD2.finite_difference_hessian(L_fxu,utraj[k])
+            # r = FD2.finite_difference_gradient(L_fxu,utraj[k])
+            R = FD.hessian(L_fxu,utraj[k])
+            r = FD.gradient(L_fxu,utraj[k])
             # R = copy(R_lqr)
             # r = R_lqr*utraj[k]
 
@@ -155,19 +151,25 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # error()
             # discrete dynamics jacobians
             A_fx(xloc) = discrete_dynamics(xloc,utraj[k],(k-1)*dt,dt)
-            Ak = FD2.finite_difference_jacobian(A_fx,xtraj[k])
-
+            # Ak = FD2.finite_difference_jacobian(A_fx,xtraj[k])
+            Ak = FD.jacobian(A_fx,xtraj[k])
             # @info "A matrix"
             B_fx(u_loc) =  discrete_dynamics(xtraj[k],u_loc,(k-1)*dt,dt)
             # @infiltrate
             # error()
-            Bk = FD2.finite_difference_jacobian(B_fx,utraj[k])
+            # Bk = FD2.finite_difference_jacobian(B_fx,utraj[k])
+            Bk = FD.jacobian(B_fx,utraj[k])
 
             # @info "B matrix"
             # error()
             # linear solve
-            l[k] = (R + Bk'*S*Bk)\(r + Bk'*s)
-            K[k] = (R + Bk'*S*Bk)\(Bk'*S*Ak)
+            # if minimum(eigvals(R + Bk'*S*Bk))<0
+            #     @infiltrate
+            #     error()
+            # end
+            F = factorize(R + Bk'*S*Bk)
+            l[k] = F\(r + Bk'*s)
+            K[k] = F\(Bk'*S*Ak)
 
             # update
             Snew = Q + K[k]'*R*K[k] + (Ak-Bk*K[k])'*S*(Ak-Bk*K[k])
@@ -258,8 +260,8 @@ function runit()
 # Q = Diagonal(@SVector ones(6))
 # Qf = 10*Q
 # R = Diagonal(@SVector ones(3))
-u_min = -0.05*(@SVector ones(3))
-u_max = 0.05*(@SVector ones(3))
+u_min = -5*(@SVector ones(9))
+u_max = 5*(@SVector ones(9))
 Q = Diagonal([100*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
 Qf = 100*Q
 # xf = zeros(6)
@@ -268,36 +270,52 @@ R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
 # xf = zeros(18)
 # x0 = [.1;.2;.3;1;2;3;randn(3);zeros(9)]
 x0 = zeros(18)
-xf = [.414;.3;.1;1;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
+
+# solver state
+# x = [mrp; position; joint angles; ω; vel; joint speeds]
+
+# RBD state
+# x = [quaternion; position; joint angles; ω; vel; joint speeds]
+
+xf = [.414;.3;.1;5;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
 dt = 0.2
 N = 150
 
 
-μ = 1e-2
-λ = cfill(6,N-1)
+μ = 1
+λ = cfill(18,N-1)
 # utraj = cfill(7,N-1)
 utraj = [0*randn(9) for i = 1:N-1]
-xtraj = cfill(6,N-1)
-# constraint_violation = zeros(14,N-1)
-for i = 1:1
+xtraj = cfill(18,N-1)
+# constraint_violation = zeros(18,N-1)
+for i = 1:5
     xtraj, utraj, K = ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
-    # # @show "done with 1"
-    # # penalty update
-    # for k = 1:length(λ)
-    #     # @show k
-    #
-    #     # z = λ[k] - μ*c_fx(xtraj[k],utraj[k])
-    #     # @infiltrate
-    #     λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
+    # @show "done with 1"
+    # penalty update
+    for k = 1:length(λ)
+        # @show k
+
+        # z = λ[k] - μ*c_fx(xtraj[k],utraj[k])
+        # @infiltrate
+        λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
+    end
+    @show "update done"
+
+    umm = mat_from_vec(utraj)
+    umin = minimum(umm)
+    umax = maximum(umm)
+
+    top_violate = max(0,umax - params.u_max[1])
+    bot_violate = max(0,params.u_min[1] - umin)
+
+    @show max(top_violate,bot_violate)
+    # for ii = 1:(length(xtraj)-1)
+    #     constraint_violation[:,i] = max.(0,c_fx(xtraj[ii],utraj[ii]))
     # end
-    # # @show "update done"
-    # # for ii = 1:(length(xtraj)-1)
-    # #     constraint_violation[:,i] = max.(0,c_fx(xtraj[ii],utraj[ii]))
-    # # end
-    # # max_c = maximum(vec(constraint_violation))
-    # # @show max_c
-    # μ*=5
+    # max_c = maximum(vec(constraint_violation))
+    # @show max_c
+    μ*=5
 end
 
 
@@ -328,9 +346,9 @@ return xm, um, X_rbd
 end
 xm2, um2, X_rbd = runit()
 
-# ts = 0:.2:149*0.2
-ts = [(i-1)*.2 for i = 1:150]
-# open(vis)
-
-qs2 = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
-MeshCatMechanisms.animate(vis, ts, qs2; realtimerate = 2.)
+# # ts = 0:.2:149*0.2
+# ts = [(i-1)*.2 for i = 1:150]
+# # open(vis)
+#
+# qs2 = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
+# MeshCatMechanisms.animate(vis, ts, qs2; realtimerate = 2.)
