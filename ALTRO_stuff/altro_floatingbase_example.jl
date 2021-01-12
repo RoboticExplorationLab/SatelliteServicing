@@ -49,7 +49,6 @@ function RobotDynamics.dynamics(model::FloatingSat, x::AbstractVector{T}, u) whe
     ω = x[10:12]
     vel = x[13:15]
     θ̇ = x[16:18]
-    # θ̇ = @SVector [x[16],x[17],x[18]]
 
     # now we convert it to a state for RBD
     state = statecache[T]
