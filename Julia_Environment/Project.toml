@@ -2,6 +2,7 @@
 Attitude = "8b3d34c0-dc4a-4a06-a8c8-4215f240a648"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Blink = "ad839575-38b3-5650-b840-f874b8c74a25"
+DiffResults = "163ba53b-c6d8-5494-b064-1a9d43ac40c5"
 FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"

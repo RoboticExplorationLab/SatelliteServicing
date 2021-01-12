@@ -1,6 +1,8 @@
 using ForwardDiff, LinearAlgebra, MATLAB, Infiltrator
 using Attitude, StaticArrays
 using FiniteDiff
+using DiffResults
+const DR = DiffResults
 const FD = ForwardDiff
 const FD2 = FiniteDiff
 function rk4(f, x_n, u, t,dt)
@@ -86,6 +88,8 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
     xnew = cfill(Nx,N)
     unew = cfill(Nu,N-1)
 
+    # pre-allocate hessian
+    ∂J = DR.HessianResult(unew[1])
     # main loop
     for iter = 1:50
 
@@ -138,8 +142,13 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             L_fxu(ul) = Lag(Q_lqr,R_lqr,xtraj[k],ul,xf,λ[k],μ)
             # R = FD2.finite_difference_hessian(L_fxu,utraj[k])
             # r = FD2.finite_difference_gradient(L_fxu,utraj[k])
-            R = FD.hessian(L_fxu,utraj[k])
-            r = FD.gradient(L_fxu,utraj[k])
+            # R = FD.hessian(L_fxu,utraj[k])
+            # r = FD.gradient(L_fxu,utraj[k])
+
+            ∂J = FD.hessian!(∂J,L_fxu,utraj[k])
+            R = DR.hessian(∂J)
+            r = DR.gradient(∂J)
+
             # R = copy(R_lqr)
             # r = R_lqr*utraj[k]
 
@@ -280,7 +289,7 @@ x0 = zeros(18)
 xf = [.414;.3;.1;5;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
 dt = 0.2
-N = 150
+N = 75
 
 
 μ = 1

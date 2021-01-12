@@ -1,0 +1,97 @@
+<robot name="floppy">
+
+<material name="blue">
+  <color rgba="0 0 0.8 1"/>
+</material>
+
+<material name="white">
+  <color rgba="1 1 1 1"/>
+</material>
+
+
+  <link name="sc_bus">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="10.0"/>
+      <inertia ixx="16"  ixy="0"  ixz="0" iyy="16" iyz="0" izz="7" />
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="2.0 2.0 4.0"/>
+      </geometry>
+    </visual>
+  </link>
+
+
+ <link name="spinner">
+   <inertial>
+     <origin xyz="0 0 0" rpy="0 0 0"/>
+     <mass value="1.0"/>
+     <inertia ixx="0.750833"  ixy="0"  ixz="0" iyy="0.334167" iyz="0" izz="1.08333" />
+   </inertial>
+
+   <visual>
+     <origin xyz="0 0 0" rpy="0 0 0" />
+     <geometry>
+       <box size=".5 .5 .5" />
+     </geometry>
+     <material name="Cyan">
+       <color rgba="0 1.0 1.0 1.0"/>
+     </material>
+   </visual>
+
+ </link>
+
+ <link name="first_arm">
+   <inertial>
+     <origin xyz="0 0 1" rpy="0 0 0"/>
+     <mass value="1.0"/>
+     <inertia ixx="0.3"  ixy="0"  ixz="0" iyy="0.334167" iyz="0" izz=".01" />
+   </inertial>
+
+   <visual>
+     <origin xyz="0 0 1" rpy="0 0 0" />
+     <geometry>
+       <box size=".1 .1 2" />
+     </geometry>
+     <material name="blue"/>
+   </visual>
+
+ </link>
+ <link name="second_arm">
+   <inertial>
+     <origin xyz="0 0 1" rpy="0 0 0"/>
+     <mass value="1.0"/>
+     <inertia ixx="0.3"  ixy="0"  ixz="0" iyy="0.334167" iyz="0" izz=".01" />
+   </inertial>
+
+   <visual>
+     <origin xyz="0 0 1" rpy="0 0 0" />
+     <geometry>
+       <box size=".1 .1 2" />
+     </geometry>
+     <material name="blue"/>
+   </visual>
+
+ </link>
+
+<joint name="spinner_joint" type="continuous">
+    	<parent link="sc_bus"/>
+    	<child link="spinner"/>
+    	<origin xyz="0 0 2" rpy="0 0 0"/>
+    	<axis xyz="0 0 1"/>
+</joint>
+<joint name="first_arm_joint" type="continuous">
+    	<parent link="spinner"/>
+    	<child link="first_arm"/>
+    	<origin xyz="0 0 0" rpy="0 0 0"/>
+    	<axis xyz="1 0 0"/>
+</joint>
+<joint name="second_arm_joint" type="continuous">
+    	<parent link="first_arm"/>
+    	<child link="second_arm"/>
+    	<origin xyz="0 0 2" rpy="0 0 0"/>
+    	<axis xyz="1 0 0"/>
+</joint>
+
+</robot>
