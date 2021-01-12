@@ -260,14 +260,15 @@ function runit()
 # R = Diagonal(@SVector ones(3))
 u_min = -0.05*(@SVector ones(3))
 u_max = 0.05*(@SVector ones(3))
-Q = Diagonal([10*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
+Q = Diagonal([100*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
 Qf = 100*Q
 # xf = zeros(6)
-R = .1*Diagonal([ones(3);ones(3);ones(3)])
+R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
 
-xf = zeros(18)
-x0 = [.1;.2;.3;1;2;3;randn(3);zeros(9)]
-
+# xf = zeros(18)
+# x0 = [.1;.2;.3;1;2;3;randn(3);zeros(9)]
+x0 = zeros(18)
+xf = [.414;.3;.1;1;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
 dt = 0.2
 N = 150
@@ -332,4 +333,4 @@ ts = [(i-1)*.2 for i = 1:150]
 # open(vis)
 
 qs2 = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
-MeshCatMechanisms.animate(vis, ts, qs2; realtimerate = 1.)
+MeshCatMechanisms.animate(vis, ts, qs2; realtimerate = 2.)
