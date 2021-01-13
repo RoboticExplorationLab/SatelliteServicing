@@ -229,7 +229,7 @@ u_min = -50*(@SVector ones(13))
 u_max = 50*(@SVector ones(13))
 
 # LQR cost function (.5*(x-xf)'*Q*(x - xf) + .5*u'*R*u)
-Q = 100*Diagonal(@SVector ones(26))
+Q = 100*Diagonal(ones(26))
 Q[1:3,1:3]*=100
 Qf = 100*Q
 # R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
