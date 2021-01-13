@@ -1,12 +1,12 @@
+cd(joinpath(dirname(dirname(@__FILE__)),"Julia_Environment"))
+Pkg.activate(".")
+Pkg.instantiate()
 using ForwardDiff, LinearAlgebra, MATLAB, Infiltrator
 using Attitude, StaticArrays
 using Printf
-# using FiniteDiff
 using DiffResults
-# const DR = DiffResults
 const FD = ForwardDiff
-# const FD2 = FiniteDiff
-
+include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
 function rk4(f, x_n, u, t,dt)
     """RK4 for integration of a single time step"""
     k1 = dt*f(x_n,u,t)
@@ -168,7 +168,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # this will happen if linearization is bad for some reason, or
             # if the trajectory has converged and can't do any better
             if inner_i == 20
-                @warn ("Line Search Failed")
+                # @warn ("Line Search Failed")
                 @show J
                 @show Jnew
                 Jnew = copy(J)
@@ -275,8 +275,8 @@ end
 xm2, um2, X_rbd = runit()
 
 
-# ts = [(i-1)*.2 for i = 1:length(X_rbd)]
-# open(vis)
-# #
-# qs = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
-# MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 2.)
+# 3D visualization
+ts = [(i-1)*.2 for i = 1:length(X_rbd)]
+open(vis)
+qs = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
+MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 2.)
