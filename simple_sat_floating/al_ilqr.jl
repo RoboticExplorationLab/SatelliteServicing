@@ -7,6 +7,7 @@ using Printf
 using DiffResults
 const FD = ForwardDiff
 include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
+include(joinpath(dirname(@__FILE__),"logging_functions.jl"))
 function rk4(f, x_n, u, t,dt)
     """RK4 for integration of a single time step"""
     k1 = dt*f(x_n,u,t)
@@ -46,27 +47,6 @@ function Lag(Q,R,x,u,xf,λ,μ)
     # return LQR_cost(Q,R,x,u,xf)
 end
 
-function solver_logging(iter,DJ,l,J,α)
-    """Don't worry about this, just for visual logging in the REPL"""
-    if rem((iter-1),4)==0
-    printstyled("iter     α              maxL           J              DJ\n";
-                    bold = true, color = :light_blue)
-        bars = "----------------------------"
-        bars*="------------------------------------\n"
-        printstyled(bars; color = :light_blue)
-    end
-    DJ = @sprintf "%.4E" DJ
-    maxL = @sprintf "%.4E" round(maximum(maximum.(l)),sigdigits = 3)
-    J_display = @sprintf "%.4E" J
-    alpha_display = @sprintf "%.4E" α
-    str = "$iter"
-    for i = 1:(4 - ndigits(iter))
-        str *= " "
-    end
-    println("$str     $alpha_display     $maxL     $J_display     $DJ")
-    return nothing
-end
-
 function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
     # problem status
@@ -96,6 +76,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
     xnew = cfill(Nx,N)
     unew = cfill(Nu,N-1)
 
+    output_iter = 0
     # main loop
     for iter = 1:50
 
@@ -199,6 +180,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         DJ = abs(J - Jnew)
         solver_logging(iter,DJ,l,J,α)
         if DJ<params.dJ_tol
+            output_iter = iter
             break
         else
             J = Jnew
@@ -207,7 +189,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
     end
 
-    return xtraj, utraj, K
+    return xtraj, utraj, K, output_iter
 end
 
 
@@ -239,13 +221,15 @@ N = 150
 
 # Augmented Lagrangian stuff
 μ = 1
+ϕ = 5
 λ = cfill(18,N-1)
 utraj = [0*randn(9) for i = 1:N-1]
 xtraj = cfill(18,N-1)
 constraint_violation = cfill(18,N-1)
+total_iter = 0
 for i = 1:20
-    xtraj, utraj, K = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
-
+    xtraj, utraj, K, iter = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
+    total_iter += iter
     # penalty update
     for k = 1:length(λ)
         λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
@@ -255,14 +239,15 @@ for i = 1:20
     for i = 1:length(utraj)
         constraint_violation[i] = c_fx(xtraj[i],utraj[i])
     end
-    max_con_violation = max(0,maximum(maximum.(constraint_violation)))
-    @show max_con_violation
+    c_max= max(0,maximum(maximum.(constraint_violation)))
+    # @show max_con_violation
 
-    if (max_con_violation !=0 && max_con_violation < params.ϵ_c)
+    outer_loop_solver_logging(i,total_iter,c_max,μ,ϕ)
+    if (c_max!=0 && c_max < params.ϵ_c)
         break
     else
         # increase penalty on augmented lagrangian terms
-        μ*=5
+        μ*=ϕ
     end
 end
 
