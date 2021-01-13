@@ -1,5 +1,6 @@
 using ForwardDiff, LinearAlgebra, MATLAB, Infiltrator
 using Attitude, StaticArrays
+using Printf
 # using FiniteDiff
 using DiffResults
 # const DR = DiffResults
@@ -12,8 +13,6 @@ function rk4(f, x_n, u, t,dt)
     k2 = dt*f(x_n+k1/2, u,t+dt/2)
     k3 = dt*f(x_n+k2/2, u,t+dt/2)
     k4 = dt*f(x_n+k3, u,t+dt)
-
-
     return (x_n + (1/6)*(k1+2*k2+2*k3 + k4))
 
 end
@@ -21,10 +20,11 @@ function discrete_dynamics(x,u,t,dt)
     return rk4(dynamics,x,u,t,dt)
 end
 function LQR_cost(Q,R,x,u,xf)
+    """Standard LQR cost function with a goal state"""
     return .5*(x-xf)'*Q*(x - xf) + .5*u'*R*u
 end
 function c_fx(x,u)
-    # this is for c < 0
+    """Constraint function, c_fx(x,u)<0 means constraint is satisfied"""
     return [u - params.u_max;
            -u + params.u_min]
 end
@@ -46,7 +46,28 @@ function Lag(Q,R,x,u,xf,λ,μ)
     # return LQR_cost(Q,R,x,u,xf)
 end
 
-function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
+function solver_logging(iter,DJ,l,J,α)
+    """Don't worry about this, just for visual logging in the REPL"""
+    if rem((iter-1),4)==0
+    printstyled("iter     α              maxL           J              DJ\n";
+                    bold = true, color = :light_blue)
+        bars = "----------------------------"
+        bars*="------------------------------------\n"
+        printstyled(bars; color = :light_blue)
+    end
+    DJ = @sprintf "%.4E" DJ
+    maxL = @sprintf "%.4E" round(maximum(maximum.(l)),sigdigits = 3)
+    J_display = @sprintf "%.4E" J
+    alpha_display = @sprintf "%.4E" α
+    str = "$iter"
+    for i = 1:(4 - ndigits(iter))
+        str *= " "
+    end
+    println("$str     $alpha_display     $maxL     $J_display     $DJ")
+    return nothing
+end
+
+function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
     # state and control dimensions
     Nx = length(x0)
@@ -164,19 +185,12 @@ function ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         DJ = abs(J - Jnew)
         if DJ<params.dJ_tol
             break
+        else
+            J = Jnew
         end
 
         # ----------------------------output stuff-----------------------------
-        if rem((iter-1),4)==0
-            println("iter       alpha      maxL    Cost      DJ")
-        end
-        DJ = round(DJ,sigdigits = 3)
-        maxL = round(maximum(maximum.(l)),sigdigits = 3)
-        J = Jnew
-        J_display = round(J,sigdigits = 3)
-        alpha_display = round(α,sigdigits = 3)
-        println("$iter          $alpha_display      $maxL    $J_display    $DJ")
-
+        solver_logging(iter,DJ,l,J,α)
 
     end
 
@@ -186,60 +200,57 @@ end
 
 function runit()
 
+# constraints on u
 u_min = -3*(@SVector ones(9))
 u_max = 3*(@SVector ones(9))
+
+# LQR cost function (.5*(x-xf)'*Q*(x - xf) + .5*u'*R*u)
 Q = Diagonal([100*ones(3);10*ones(3);10*ones(3);.1*ones(3);.1*ones(3);.1*ones(3)])
 Qf = 100*Q
 R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
-x0 = zeros(18)
 
 # solver state
 # x = [mrp; position; joint angles; ω; vel; joint speeds]
 
-# RBD state (purely inside the dynamics function)
+# RBD state (used purely inside the dynamics function)
 # x = [quaternion; position; joint angles; ω; vel; joint speeds]
-
+x0 = zeros(18)
 xf = [.414;.3;.1;5;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
+
+# global named tuple to pass to solver
 global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
-dt = 0.2
-N = 75
 
+# time step size and number of time steps
+dt = 0.1
+N = 150
 
+# Augmented Lagrangian stuff
 μ = 1
 λ = cfill(18,N-1)
 utraj = [0*randn(9) for i = 1:N-1]
 xtraj = cfill(18,N-1)
 constraint_violation = cfill(18,N-1)
-for i = 1:5
-    xtraj, utraj, K = ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
+for i = 1:20
+    xtraj, utraj, K = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
 
     # penalty update
     for k = 1:length(λ)
         λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
     end
-    @show "update done"
 
-
+    # constraint is such that c_fx()<0, so if it's greater than 0 we violate
     for i = 1:length(utraj)
         constraint_violation[i] = c_fx(xtraj[i],utraj[i])
     end
-    max_con_vi = maximum(maximum.(constraint_violation))
+    max_con_violation = max(0,maximum(maximum.(constraint_violation)))
+    @show max_con_violation
 
-    @show max_con_vi
-    # umm = mat_from_vec(utraj)
-    # umin = minimum(umm)
-    # umax = maximum(umm)
-    #
-    # top_violate = max(0,umax - params.u_max[1])
-    # bot_violate = max(0,params.u_min[1] - umin)
-    #
-    # @show max(top_violate,bot_violate)
-    # for ii = 1:(length(xtraj)-1)
-    #     constraint_violation[:,i] = max.(0,c_fx(xtraj[ii],utraj[ii]))
-    # end
-    # max_c = maximum(vec(constraint_violation))
-    # @show max_c
-    μ*=5
+    if (max_con_violation !=0 && max_con_violation < params.ϵ_c)
+        break
+    else
+        # increase penalty on augmented lagrangian terms
+        μ*=5
+    end
 end
 
 
@@ -264,8 +275,8 @@ end
 xm2, um2, X_rbd = runit()
 
 
-ts = [(i-1)*.2 for i = 1:length(X_rbd)]
-open(vis)
-#
-qs = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
-MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 2.)
+# ts = [(i-1)*.2 for i = 1:length(X_rbd)]
+# open(vis)
+# #
+# qs = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
+# MeshCatMechanisms.animate(vis, ts, qs; realtimerate = 2.)
