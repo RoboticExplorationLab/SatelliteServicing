@@ -6,8 +6,13 @@ using Attitude, StaticArrays
 using Printf
 using DiffResults
 const FD = ForwardDiff
+
+# load in dynamics function
 include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
+
+# load logging utilities
 include(joinpath(dirname(@__FILE__),"logging_functions.jl"))
+
 function rk4(f, x_n, u, t,dt)
     """RK4 for integration of a single time step"""
     k1 = dt*f(x_n,u,t)
@@ -17,13 +22,16 @@ function rk4(f, x_n, u, t,dt)
     return (x_n + (1/6)*(k1+2*k2+2*k3 + k4))
 
 end
+
 function discrete_dynamics(x,u,t,dt)
     return rk4(dynamics,x,u,t,dt)
 end
+
 function LQR_cost(Q,R,x,u,xf)
     """Standard LQR cost function with a goal state"""
     return .5*(x-xf)'*Q*(x - xf) + .5*u'*R*u
 end
+
 function c_fx(x,u)
     """Constraint function, c_fx(x,u)<0 means constraint is satisfied"""
     return [u - params.u_max;
@@ -38,7 +46,6 @@ function Π(z)
     end
     return out
 end
-
 
 function Lag(Q,R,x,u,xf,λ,μ)
     """Augmented Lagrangian"""
@@ -186,7 +193,6 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             J = Jnew
         end
 
-
     end
 
     return xtraj, utraj, K, output_iter
@@ -209,6 +215,7 @@ R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
 
 # RBD state (used purely inside the dynamics function)
 # x = [quaternion; position; joint angles; ω; vel; joint speeds]
+
 x0 = zeros(18)
 xf = [.414;.3;.1;5;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
 
@@ -259,12 +266,14 @@ um = mat_from_vec(utraj)
 mat"
 figure
 hold on
+title('State History')
 plot($xm')
 hold off
 "
 mat"
 figure
 hold on
+title('Control History')
 plot($um')
 hold off
 "
@@ -273,7 +282,7 @@ end
 xm2, um2, X_rbd = runit()
 
 
-# 3D visualization
+# 3D visualization using MeshCat
 ts = [(i-1)*.2 for i = 1:length(X_rbd)]
 open(vis)
 qs = [X_rbd[i][1:10] for i = 1:length(X_rbd)]
