@@ -69,6 +69,9 @@ end
 
 function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
+    # problem status
+    prob_success = true
+
     # state and control dimensions
     Nx = length(x0)
     Nu = size(R_lqr,1)
@@ -104,7 +107,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         for k = (N-1):-1:1
 
             # ∂²J/∂x²
-            Q = Q_lqr
+            Q = copy(Q_lqr)
 
             # ∂J/∂x
             q = Q_lqr*(xtraj[k] - xf)
@@ -124,18 +127,22 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             B_fx(u_loc) =  discrete_dynamics(xtraj[k],u_loc,(k-1)*dt,dt)
             Bk = FD.jacobian(B_fx,utraj[k])
 
-            # solve the linear system for feedforward (l) and feedback gain (K)
-            F = factorize(R + Bk'*S*Bk)
-            l[k] = F\(r + Bk'*s)
-            K[k] = F\(Bk'*S*Ak)
+            # quadratic expansion of cost to go
+            Qxx = Q + Ak'*S*Ak
+            Quu = R + Bk'*S*Bk
+            Qux = Bk'*S*Ak
+            Qxu = Qux'
+            Qx = q + Ak'*s
+            Qu = r + Bk'*s
 
-            # update
-            Snew = Q + K[k]'*R*K[k] + (Ak-Bk*K[k])'*S*(Ak-Bk*K[k])
-            snew = q - K[k]'*r + K[k]'*R*l[k] + (Ak-Bk*K[k])'*(s - S*Bk*l[k])
+            # linear solve
+            F = factorize(Quu + 0*I)
+            l[k] = -(F\Qu)
+            K[k] = -(F\Qux)
 
-            # update S's
-            S = copy(Snew)
-            s = copy(snew)
+            # update S and s
+            S = Qxx + K[k]'*Quu*K[k] + K[k]'*Qux + Qxu*K[k]
+            s = Qx + K[k]'*Quu*l[k] + K[k]'*Qu + Qxu*l[k]
 
         end
 
@@ -152,7 +159,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
             # rollout the dynamics
             for k = 1:N-1
-                unew[k] = utraj[k] - α*l[k] - K[k]*(xnew[k]-xtraj[k])
+                unew[k] = utraj[k] + α*l[k] + K[k]*(xnew[k]-xtraj[k])
                 xnew[k+1] = discrete_dynamics(xnew[k],unew[k],(k-1)*dt,dt)
                 Jnew += Lag(Q_lqr,R_lqr,xnew[k],unew[k],xf,λ[k],μ)
             end
@@ -169,28 +176,34 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # if the trajectory has converged and can't do any better
             if inner_i == 20
                 # @warn ("Line Search Failed")
-                @show J
-                @show Jnew
+                # @show J
+                # @show Jnew
+
+                # this causes termination of the solver since DJ = 0
                 Jnew = copy(J)
+
+                # this flag tells us to not update the states and controls
+                prob_success = false
                 break
             end
 
         end
 
         # update trajectory and control history
-        xtraj = copy(xnew)
-        utraj = copy(unew)
+        if prob_success
+            xtraj = copy(xnew)
+            utraj = copy(unew)
+        end
 
         # termination criteria
         DJ = abs(J - Jnew)
+        solver_logging(iter,DJ,l,J,α)
         if DJ<params.dJ_tol
             break
         else
             J = Jnew
         end
 
-        # ----------------------------output stuff-----------------------------
-        solver_logging(iter,DJ,l,J,α)
 
     end
 
@@ -218,7 +231,7 @@ x0 = zeros(18)
 xf = [.414;.3;.1;5;2;3;[pi;deg2rad(45);-deg2rad(90)];zeros(9)]
 
 # global named tuple to pass to solver
-global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-4)
+global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-3)
 
 # time step size and number of time steps
 dt = 0.1
