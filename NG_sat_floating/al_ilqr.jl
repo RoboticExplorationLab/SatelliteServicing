@@ -53,10 +53,8 @@ function Lag(Q,R,x,u,xf,λ,μ)
             (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
     # return LQR_cost(Q,R,x,u,xf)
 end
-function c_goal(x)
-    return x
-end
 function term_cost(x,xf,λ,μ)
+    """AL terms for goal constraint"""
     c = (x - xf)
     return -dot(λ,c) + .5*μ*dot(c,c)
 end
