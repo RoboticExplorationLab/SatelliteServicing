@@ -7,8 +7,8 @@ using Printf
 using DiffResults
 const FD = ForwardDiff
 
-# load in dynamics function
-# include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
+load in dynamics function
+include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
 
 # load logging utilities
 include(joinpath(dirname(@__FILE__),"logging_functions.jl"))
@@ -94,11 +94,8 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
     for iter = 1:50
 
         # Cost to go hessian and gradient at final time step
-        # @infiltrate
-        # error()
-        S = copy(Qf_lqr) + μ*I
-        # s = Qf_lqr*(xtraj[N] - xf) + (λ[N] + μ*I*(xtraj[N]-xf))
-        s = Qf_lqr*(xtraj[N] - xf) - λ[N] + μ*(xtraj[N]-xf)
+        S = copy(Qf_lqr) + μ*I # added goal state constraint terms
+        s = Qf_lqr*(xtraj[N] - xf) - λ[N] + μ*(xtraj[N]-xf) # " "
 
         # backwards pass
         for k = (N-1):-1:1
@@ -168,10 +165,6 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             # this will happen if linearization is bad for some reason, or
             # if the trajectory has converged and can't do any better
             if inner_i == 20
-                # @warn ("Line Search Failed")
-                # @show J
-                # @show Jnew
-
                 # this causes termination of the solver since DJ = 0
                 Jnew = copy(J)
 
@@ -213,8 +206,7 @@ u_max = 10*(@SVector ones(13))
 # LQR cost function (.5*(x-xf)'*Q*(x - xf) + .5*u'*R*u)
 Q = 100*Diagonal(ones(26))
 Q[1:3,1:3]*=100
-Qf = 100*Q
-# R = .1*Diagonal([ones(3);ones(3);50*ones(3)])
+Qf = Q
 R = Diagonal(@SVector ones(13))
 
 # solver state
@@ -224,7 +216,8 @@ R = Diagonal(@SVector ones(13))
 # x = [quaternion; position; joint angles; ω; vel; joint speeds]
 
 x0 = zeros(26)  # initial state
-xf = [.414;.3;.1;5;2;3;.1*ones(7);zeros(13)]
+final_joint_angles = [.1;.2;-.4;.5;.8;-.3;.7]
+xf = [.414;.3;.1;5;2;3;final_joint_angles;zeros(13)]
 
 # global named tuple to pass to solver
 global params = (dJ_tol = 1e-2, u_min = u_min, u_max = u_max,ϵ_c = 1e-3)
@@ -237,6 +230,8 @@ N = 300
 μ = 1
 ϕ = 5
 λ = cfill(26,N)
+# goal constraint λ ∈ R^26
+λ[N] = zeros(26)
 utraj = [0*randn(13) for i = 1:N-1]
 xtraj = cfill(26,N-1)
 constraint_violation = cfill(26,N-1)
@@ -244,21 +239,21 @@ total_iter = 0
 for i = 1:15
     xtraj, utraj, K, iter = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
     total_iter += iter
-    # penalty update
+    # penalty update for control constraints
     for k = 1:(N-1)
         λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
     end
+    # penalty update for goal constraint
     λ[N] = λ[N] - μ*(xtraj[N]-xf)
-
-    @show "goal constraint" maximum(abs.(xtraj[N]-xf))
 
     # constraint is such that c_fx()<0, so if it's greater than 0 we violate
     for i = 1:length(utraj)
         constraint_violation[i] = c_fx(xtraj[i],utraj[i])
     end
-    c_max= max(0,maximum(maximum.(constraint_violation)))
+    c_max = max(0,maximum(maximum.(constraint_violation)))
+
+    # include goal constraint as well
     c_max = max(c_max,maximum(abs.(xtraj[N] - xf)))
-    # @show max_con_violation
 
     outer_loop_solver_logging(i,total_iter,c_max,μ,ϕ)
     # if (c_max!=0 && c_max < params.ϵ_c)
