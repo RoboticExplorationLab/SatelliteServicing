@@ -8,7 +8,7 @@ using DiffResults
 const FD = ForwardDiff
 
 # load in dynamics function
-include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
+# include(joinpath(dirname(@__FILE__),"dynamics_setup.jl"))
 
 # load logging utilities
 include(joinpath(dirname(@__FILE__),"logging_functions.jl"))
@@ -49,9 +49,9 @@ end
 
 function Lag(Q,R,x,u,xf,λ,μ)
     """Augmented Lagrangian"""
-    # return (LQR_cost(Q,R,x,u,xf) +
-    #         (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
-    return LQR_cost(Q,R,x,u,xf)
+    return (LQR_cost(Q,R,x,u,xf) +
+            (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
+    # return LQR_cost(Q,R,x,u,xf)
 end
 
 function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
@@ -128,33 +128,6 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
             S = copy(Snew)
             s = copy(snew)
 
-            # # quadratic expansion of cost to go
-            # Qxx = Q + Ak'*S*Ak
-            # Quu = R + Bk'*S*Bk
-            # Qux = Bk'*S*Ak
-            # Qxu = Qux'
-            # Qx = q + Ak'*s
-            # Qu = r + Bk'*s
-            #
-            # # linear solve
-            # # @show Quu
-            # if hasnan(Quu)
-            #     @show Quu
-            #     error()
-            # end
-            # if rank(Quu) < size(Quu,1)
-            #     @show Quu
-            #     @infiltrate
-            #     error()
-            # end
-            # F = factorize(Quu + (1e-8)*I)
-            # l[k] = -(F\Qu)
-            # K[k] = -(F\Qux)
-            #
-            # # update S and s
-            # S = Qxx + K[k]'*Quu*K[k] + K[k]'*Qux + Qxu*K[k]
-            # s = Qx + K[k]'*Quu*l[k] + K[k]'*Qu + Qxu*l[k]
-
         end
 
         # initial conditions for new trajectory
@@ -225,8 +198,8 @@ end
 function runit()
 
 # constraints on u
-u_min = -50*(@SVector ones(13))
-u_max = 50*(@SVector ones(13))
+u_min = -10*(@SVector ones(13))
+u_max = 10*(@SVector ones(13))
 
 # LQR cost function (.5*(x-xf)'*Q*(x - xf) + .5*u'*R*u)
 Q = 100*Diagonal(ones(26))
@@ -259,7 +232,7 @@ utraj = [0*randn(13) for i = 1:N-1]
 xtraj = cfill(26,N-1)
 constraint_violation = cfill(26,N-1)
 total_iter = 0
-for i = 1:1
+for i = 1:10
     xtraj, utraj, K, iter = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
     total_iter += iter
     # penalty update
