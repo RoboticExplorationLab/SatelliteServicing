@@ -53,7 +53,13 @@ function Lag(Q,R,x,u,xf,λ,μ)
             (1/(2*μ))*(  norm(Π(λ - μ*c_fx(x,u)))^2 - dot(λ,λ)))
     # return LQR_cost(Q,R,x,u,xf)
 end
-
+function c_goal(x)
+    return x
+end
+function term_cost(x,xf,λ,μ)
+    c = (x - xf)
+    return -dot(λ,c) + .5*μ*dot(c,c)
+end
 function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
 
     # problem status
@@ -73,7 +79,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
         xtraj[k+1] = discrete_dynamics(xtraj[k],utraj[k],(k-1)*dt,dt)
         J += Lag(Q_lqr,R_lqr,xtraj[k],utraj[k],xf,λ[k],μ)
     end
-    J += .5*(xtraj[N]-xf)'*Qf_lqr*(xtraj[N] - xf)
+    J += .5*(xtraj[N]-xf)'*Qf_lqr*(xtraj[N] - xf)+term_cost(xtraj[N],xf,λ[N],μ)
 
     # allocate K and l
     K = cfill(Nu,Nx,N-1)
@@ -88,8 +94,11 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
     for iter = 1:50
 
         # Cost to go hessian and gradient at final time step
-        S = copy(Qf_lqr)
-        s = Qf_lqr*(xtraj[N] - xf)
+        # @infiltrate
+        # error()
+        S = copy(Qf_lqr) + μ*I
+        # s = Qf_lqr*(xtraj[N] - xf) + (λ[N] + μ*I*(xtraj[N]-xf))
+        s = Qf_lqr*(xtraj[N] - xf) - λ[N] + μ*(xtraj[N]-xf)
 
         # backwards pass
         for k = (N-1):-1:1
@@ -147,7 +156,7 @@ function al_ilqr(x0,utraj,xf,Q_lqr,Qf_lqr,R_lqr,N,dt,μ,λ)
                 xnew[k+1] = discrete_dynamics(xnew[k],unew[k],(k-1)*dt,dt)
                 Jnew += Lag(Q_lqr,R_lqr,xnew[k],unew[k],xf,λ[k],μ)
             end
-            Jnew += .5*(xnew[N]-xf)'*Qf_lqr*(xnew[N] - xf)
+            Jnew += .5*(xnew[N]-xf)'*Qf_lqr*(xnew[N] - xf)+term_cost(xnew[N],xf,λ[N],μ)
 
             # if the new cost is lower, we keep the new trajectory
             if Jnew<J
@@ -214,11 +223,11 @@ R = Diagonal(@SVector ones(13))
 # RBD state (used purely inside the dynamics function)
 # x = [quaternion; position; joint angles; ω; vel; joint speeds]
 
-xf = zeros(26)  # initial state
-x0 = [.414;.3;.1;5;2;3;.1*ones(7);zeros(13)]
+x0 = zeros(26)  # initial state
+xf = [.414;.3;.1;5;2;3;.1*ones(7);zeros(13)]
 
 # global named tuple to pass to solver
-global params = (dJ_tol = 1e-4, u_min = u_min, u_max = u_max,ϵ_c = 1e-3)
+global params = (dJ_tol = 1e-2, u_min = u_min, u_max = u_max,ϵ_c = 1e-3)
 
 # time step size and number of time steps
 dt = 0.1
@@ -227,24 +236,28 @@ N = 300
 # Augmented Lagrangian stuff
 μ = 1
 ϕ = 5
-λ = cfill(26,N-1)
+λ = cfill(26,N)
 utraj = [0*randn(13) for i = 1:N-1]
 xtraj = cfill(26,N-1)
 constraint_violation = cfill(26,N-1)
 total_iter = 0
-for i = 1:10
+for i = 1:15
     xtraj, utraj, K, iter = al_ilqr(x0,utraj,xf,Q,Qf,R,N,dt,μ,λ)
     total_iter += iter
     # penalty update
-    for k = 1:length(λ)
+    for k = 1:(N-1)
         λ[k] = Π( λ[k] - μ*c_fx(xtraj[k],utraj[k]) )
     end
+    λ[N] = λ[N] - μ*(xtraj[N]-xf)
+
+    @show "goal constraint" maximum(abs.(xtraj[N]-xf))
 
     # constraint is such that c_fx()<0, so if it's greater than 0 we violate
     for i = 1:length(utraj)
         constraint_violation[i] = c_fx(xtraj[i],utraj[i])
     end
     c_max= max(0,maximum(maximum.(constraint_violation)))
+    c_max = max(c_max,maximum(abs.(xtraj[N] - xf)))
     # @show max_con_violation
 
     outer_loop_solver_logging(i,total_iter,c_max,μ,ϕ)
